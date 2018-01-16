@@ -1,3 +1,5 @@
+#define _GLIBCXX_USE_C99 1
+
 # include <cmath>
 # include <cstdlib>
 # include <cstring>
@@ -8,18 +10,19 @@
 # include <mpi.h>
 # include <string>
 
+
 using namespace std;
 
 int main(int argc, char *argv[]);
 double f(double x);
-double integrate(double a, double b, int n, int method = 1);
+double integrate(double a, double b, uint64_t n, int method = 1);
 
 int main(int argc, char *argv[])
 {
     double a, b;
     double error;
     double my_a, my_b; // intergrating limits for each process
-    int my_n;
+    uint64_t my_n;
     double total, my_total, wtime;
     int p;// total number of processes
     int source;
@@ -29,15 +32,17 @@ int main(int argc, char *argv[])
     int master = 0;
     int method;
 
+    double const_h = 1./1000000.;
+
 
     a = 0.0;
     b = 1.0;
 
-    int n = 10000000;
     double exact = 3.1415926535897932384626433832795028841971693993751;
     //
     //  Initialize MPI.
     //
+
     MPI_Init(&argc, &argv);
     //
     //  Get this processor's ID.
@@ -50,10 +55,7 @@ int main(int argc, char *argv[])
 
     if (id == 0)
     {
-        my_n = n / (p);
-        n = (p) * my_n;
-        wtime = MPI_Wtime();
-
+   		wtime = MPI_Wtime();
         if (argc > 1)
         {
             try
@@ -74,10 +76,13 @@ int main(int argc, char *argv[])
                 }
             }
         }
+
+    	uint64_t n = uint64_t((b-a)/const_h);
+        my_n = n / (p);
     }
 
     source = 0;
-    MPI_Bcast(&my_n, 1, MPI_INT, source, MPI_COMM_WORLD);
+    MPI_Bcast(&my_n, 1, MPI_LONG_LONG_INT, source, MPI_COMM_WORLD);
     //
     //  Process 0 assigns each process a subinterval of [A,B].
     //
@@ -113,7 +118,6 @@ int main(int argc, char *argv[])
         tag = 2;
         MPI_Recv(&my_b, 1, MPI_DOUBLE, source, tag, MPI_COMM_WORLD, &status);
     }
-
     my_total = integrate(my_a, my_b, my_n, method);
     
     //
@@ -128,10 +132,13 @@ int main(int argc, char *argv[])
         error = fabs(total - exact);
         wtime = MPI_Wtime() - wtime;
 
-        /*cout << "\n";
-        cout << "  Estimate = " << setw(24) << setprecision(16) << total << "\n";
-        cout << "  Error = " << error << "\n";*/
-        cout << p << ", " << wtime << "\n";
+        // cout << "\n";
+        // cout << "  a = " << setw(24) << setprecision(16) << a << "\n";
+        // cout << "  n = " << setw(24) << setprecision(16) << my_n << "\n";
+        // cout << "  h = " << const_h << "\n";
+        // cout << "  Estimate = " << setw(24) << setprecision(16) << total << "\n";
+        // cout << "  Error = " << error << "\n";
+        cout << p << ", " << wtime << ", " << b << "\n";
     }
     //
     //  Terminate MPI.
@@ -153,14 +160,10 @@ int main(int argc, char *argv[])
 
 double f(double x)
 {
-    double value;
-
-    value = 4.0 / (x * x + 1.0);
-
-    return value;
+    return 4.0 / (x * x + 1.0);
 }
 
-double rectangular(double a, double b, int n)
+double rectangular(double a, double b, uint64_t n)
 {
     double h = (b - a) / n;
     double x = a + h/2, total = 0.0;
@@ -173,7 +176,7 @@ double rectangular(double a, double b, int n)
     return total;
 }
 
-double trapezoidal(double a, double b, int n)
+double trapezoidal(double a, double b, uint64_t n)
 {
     double h = (b - a) / n;
     double x = a, total = 0.0;
@@ -189,7 +192,7 @@ double trapezoidal(double a, double b, int n)
     return total;
 }
 
-double simpson(double a, double b, int n)
+double simpson(double a, double b, uint64_t n)
 {
     double h = (b - a) / n;
     double h_2 = h / 2;
@@ -206,7 +209,7 @@ double simpson(double a, double b, int n)
     return total;
 }
 
-double gaussian(double a, double b, int n)
+double gaussian(double a, double b, uint64_t n)
 {
     double h = (b - a) / n;
     double h_2 = h / 2;
@@ -224,7 +227,7 @@ double gaussian(double a, double b, int n)
 }
 
 
-double integrate(double a, double b, int n, int method)
+double integrate(double a, double b, uint64_t n, int method)
 {
     switch (method)
     {
